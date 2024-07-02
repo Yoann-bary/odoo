@@ -184,6 +184,8 @@ class MrpBom(models.Model):
                     same_product = bom.product_tmpl_id == byproduct.product_id.product_tmpl_id
                 if same_product:
                     raise ValidationError(_("By-product %s should not be the same as BoM product.", bom.display_name))
+                if byproduct.product_id in bom.bom_line_ids.mapped("product_id"):
+                    raise ValidationError(_("Component %s should not also be included in BoM as by-product.", byproduct.display_name))
                 if byproduct.cost_share < 0:
                     raise ValidationError(_("By-products cost shares must be positive."))
             if sum(bom.byproduct_ids.mapped('cost_share')) > 100:

@@ -33,6 +33,15 @@ class TestBoM(TestMrpCommon):
             set((self.bom_2 | self.bom_3).mapped('bom_line_ids').filtered(lambda line: not line.child_bom_id or line.child_bom_id.type != 'phantom').ids))
 
     def test_10_variants(self):
+        component_all_variants = self.env['product.product'].create({
+            'name': 'Component all variants',
+            'type': 'product',
+        })
+        component_variant_1 = self.env['product.product'].create({
+            'name': 'Component variant 1',
+            'type': 'product',
+        })
+
         test_bom = self.env['mrp.bom'].create({
             'product_tmpl_id': self.product_7_template.id,
             'product_uom_id': self.uom_unit.id,
@@ -81,11 +90,11 @@ class TestBoM(TestMrpCommon):
             ],
             'bom_line_ids': [
                 Command.create({
-                    'product_id': self.product_2.id,
+                    'product_id': component_all_variants.id,
                     'product_qty': 2,
                 }),
                 Command.create({
-                    'product_id': self.product_3.id,
+                    'product_id': component_variant_1.id,
                     'product_qty': 2,
                     'bom_product_template_attribute_value_ids': [Command.link(self.product_7_attr1_v1.id)],
                 }),
@@ -2213,6 +2222,33 @@ class TestBoM(TestMrpCommon):
         line_values = report_values['lines']
         self.assertEqual(line_values['availability_state'], 'available')
 
+    def test_raise_validation_error_if_bom_component_is_also_byproduct(self):
+        bom_product = self.env['product.product'].create({
+            'name': 'Product',
+            'type': 'product',
+        })
+        bom_component = self.env['product.product'].create({
+            'name': 'Component',
+            'type': 'product',
+        })
+
+        with self.assertRaises(exceptions.ValidationError):
+            test_bom = self.env['mrp.bom'].create({
+                'product_tmpl_id': bom_product.product_tmpl_id.id,
+                'product_qty': 1.0,
+                'bom_line_ids': [
+                    Command.create({
+                        'product_id': bom_component.id,
+                        'product_qty': 1,
+                    }),
+                ],
+                'byproduct_ids': [
+                    Command.create({
+                        'product_id': bom_component.id,
+                        'product_qty': 1,
+                    }),
+                ]
+            })
 
 @tagged('-at_install', 'post_install')
 class TestTourBoM(HttpCase):
